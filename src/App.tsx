@@ -22,6 +22,7 @@ import { useSettingsStore } from './store/settingsStore'
 // the barrel also re-exported YearView, so pulling these four in eagerly
 // dragged YearView along and silently cancelled its lazy() split below.
 import { CalendarHeader } from './features/calendar/components/CalendarHeader'
+import { SemanticKindBar } from './features/semantics/SemanticKindBar'
 import { Sidebar } from './features/calendar/components/Sidebar'
 import { EventModal } from './features/calendar/components/EventModal'
 import { EventPreviewPopup } from './features/calendar/components/EventPreviewPopup'
@@ -310,6 +311,9 @@ function CalendarApp(): JSX.Element {
   const setOverlayOpen = useCalendarStore((state) => state.setOverlayOpen)
   const setShowAddCalendar = useCalendarStore((state) => state.setShowAddCalendar)
   const openModal = useCalendarStore((state) => state.openModal)
+  const [activeSemanticFamily, setActiveSemanticFamily] = useState<import('./features/semantics/lfpSemantics').SemanticFamily | null>(null)
+  const [activeSemanticKind, setActiveSemanticKind] = useState<import('./features/semantics/lfpSemantics').SemanticKind | null>(null)
+
   const isJournalModalOpen = useCalendarStore((state) => state.isJournalModalOpen)
   const journalModalDate = useCalendarStore((state) => state.journalModalDate)
   const journalStartInCompose = useCalendarStore((state) => state.journalStartInCompose)
@@ -819,6 +823,32 @@ function CalendarApp(): JSX.Element {
           onPanEnd={isMobile ? handleContentPanEnd : undefined}
           style={isMobile ? { touchAction: 'pan-y' } : undefined}
         >
+          <SemanticKindBar
+            activeFamily={activeSemanticFamily}
+            activeKind={activeSemanticKind}
+            onFamilySelect={(family) => {
+              setActiveSemanticFamily(family)
+              setActiveSemanticKind(null)
+            }}
+            onKindSelect={(kind) => {
+              setActiveSemanticKind(kind)
+              const semantic = (
+                [
+                  ['event', 'occurrence'],
+                  ['scaena', 'occurrence'],
+                  ['journal', 'contemplation'],
+                  ['pause-point', 'contemplation'],
+                  ['task', 'duty'],
+                  ['cura', 'duty'],
+                  ['note', 'record'],
+                  ['memo', 'record'],
+                  ['plan', 'course'],
+                  ['log', 'course'],
+                ] as const
+              ).find(([candidate]) => candidate === kind)?.[1] ?? null
+              setActiveSemanticFamily(semantic)
+            }}
+          />
           {renderView()}
         </motion.main>
         <AnimatePresence>
