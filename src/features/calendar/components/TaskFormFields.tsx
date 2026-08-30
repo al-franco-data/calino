@@ -22,6 +22,8 @@ interface TaskFormFieldsProps {
   onDueAllDayChange: (checked: boolean) => void
   priority: TaskPriority | undefined
   onPriorityChange: (priority: TaskPriority | undefined) => void
+  semanticType: 'standard' | 'task' | 'cura'
+  onSemanticTypeChange: (semanticType: 'standard' | 'task' | 'cura') => void
   parentTaskId?: string
   parentTasks: CalendarEvent[]
   onParentTaskChange: (parentTaskId: string | undefined) => void
@@ -87,6 +89,8 @@ export function TaskFormFields({
   onDueAllDayChange,
   priority,
   onPriorityChange,
+  semanticType,
+  onSemanticTypeChange,
   parentTaskId,
   parentTasks,
   onParentTaskChange,
@@ -181,6 +185,27 @@ export function TaskFormFields({
               {option.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className={styles.row} data-component="task-semantic-type">
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="task-semantic-type-select">
+            Type
+          </label>
+          <select
+            id="task-semantic-type-select"
+            value={semanticType}
+            onChange={(e) =>
+              onSemanticTypeChange(e.target.value as 'standard' | 'task' | 'cura')
+            }
+            className={styles.select}
+            disabled={readOnly}
+          >
+            <option value="standard">Standard</option>
+            <option value="task">Task</option>
+            <option value="cura">Cura</option>
+          </select>
         </div>
       </div>
 

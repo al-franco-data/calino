@@ -24,6 +24,7 @@ import { AttachmentSection } from './AttachmentSection'
 import { syncJournalEntryToServer } from '../lib/journalSync'
 import { useTranslation } from 'react-i18next'
 import styles from './JournalView.module.css'
+import { LFP_SEMANTICS } from '@/features/semantics/lfpSemantics'
 import { useSemanticFilterStore } from '@/store/semanticFilterStore'
 import { matchesSemanticFilter } from '@/features/semantics/semanticFilter'
 
@@ -135,6 +136,26 @@ function JournalEditor({
   )
   const [attachments, setAttachments] = useState<CalendarAttachment[]>(entry.attachments || [])
   const { day, weekday, monthYear } = formatEntryDate(entry.start)
+
+  const journalSemanticType =
+    LFP_SEMANTICS.find(
+      (semantic) =>
+        semantic.carrier === 'VJOURNAL' &&
+        entry.concepts?.includes(semantic.concept)
+    )?.kind ?? 'standard'
+
+  const handleSemanticTypeChange = (kind: string): void => {
+    if (kind === 'standard') {
+      onChange({ concepts: [] })
+      return
+    }
+
+    const semantic = LFP_SEMANTICS.find(
+      (candidate) => candidate.carrier === 'VJOURNAL' && candidate.kind === kind
+    )
+
+    onChange({ concepts: semantic ? [semantic.concept] : [] })
+  }
 
   const relatedEvents = useMemo(
     () =>
@@ -287,6 +308,27 @@ function JournalEditor({
             onChange={updateTags}
             className={styles.headerTags}
           />
+          <div className={styles.semanticTypeRow}>
+            <label className={styles.semanticTypeLabel} htmlFor="journal-semantic-type-select">
+              Type
+            </label>
+            <select
+              id="journal-semantic-type-select"
+              className={styles.semanticTypeSelect}
+              value={journalSemanticType}
+              disabled={mode !== 'write'}
+              onChange={(event) => handleSemanticTypeChange(event.target.value)}
+            >
+              <option value="standard">Standard</option>
+              <option value="journal">Journal</option>
+              <option value="pause-point">Pause Point</option>
+              <option value="note">Note</option>
+              <option value="memo">Memo</option>
+              <option value="plan">Plan</option>
+              <option value="log">Log</option>
+            </select>
+          </div>
+
           {writableCalendars.length > 1 && (
             <div className={styles.calendarRow} role="radiogroup" aria-label={t('surface.journalCalendar')}>
               {writableCalendars.map((calendar) => {
@@ -545,6 +587,8 @@ export function JournalView(): JSX.Element {
   const timersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const removalTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const removingIdsRef = useRef<Set<string>>(new Set())
+  const syncInFlightRef = useRef<Set<string>>(new Set())
+  const syncQueuedRef = useRef<Set<string>>(new Set())
   const draftIdsRef = useRef<Set<string>>(new Set())
   const flushPendingRef = useRef<() => void>(() => {})
 
@@ -586,7 +630,12 @@ export function JournalView(): JSX.Element {
     )
   }, [])
   const activeId = selectedId
-  const selectedEntry = entries.find((entry) => entry.id === activeId) || null
+  const selectedEntry =
+    events.find(
+      (entry) =>
+        entry.id === activeId &&
+        isJournalEntryVisible(entry, visibleCalendarIds)
+    ) || null
   const writableCalendars = useMemo(
     () => calendars.filter((calendar) => !calendar.readOnly),
     [calendars]
@@ -606,63 +655,87 @@ export function JournalView(): JSX.Element {
   const syncEntry = useCallback(
     (id: string): void => {
       timersRef.current.delete(id)
-      const entry = eventsRef.current.find((event) => event.id === id)
-      if (!entry) return
-      const existing = syncBaseRef.current.get(id)
-      const isEmptyNewDraft =
-        draftIdsRef.current.has(id) &&
-        !existing &&
-        !entry.title.trim() &&
-        !entry.url &&
-        !entry.attachments?.length &&
-        !entry.categories?.length &&
-        !entry.relatedTo?.length &&
-        !entry.description?.trim()
-      if (isEmptyNewDraft) {
-        setStatus(id, 'saved')
-        return
-      }
-      const targetCalendar = calendarsRef.current.find(
-        (calendar) => calendar.id === entry.calendarId
-      )
-      if (!targetCalendar || (entry.calendarId === 'default' && !existing?.resourceHref)) {
-        syncBaseRef.current.set(id, { ...entry })
-        setStatus(id, 'saved')
-        return
-      }
-      setStatus(id, 'saving')
-      if (!existing) {
-        createCalDAVEvent(entry.calendarId, entry)
-          .then(() => {
-            syncBaseRef.current.set(id, {
-              ...(eventsRef.current.find((item) => item.id === id) || entry),
+      syncQueuedRef.current.add(id)
+
+      if (syncInFlightRef.current.has(id)) return
+
+      syncInFlightRef.current.add(id)
+
+      void (async (): Promise<void> => {
+        try {
+          while (syncQueuedRef.current.delete(id)) {
+            const entry = eventsRef.current.find((event) => event.id === id)
+            if (!entry) continue
+
+            const existing = syncBaseRef.current.get(id)
+            const isEmptyNewDraft =
+              draftIdsRef.current.has(id) &&
+              !existing &&
+              !entry.title.trim() &&
+              !entry.url &&
+              !entry.attachments?.length &&
+              !entry.categories?.length &&
+              !entry.relatedTo?.length &&
+              !entry.description?.trim()
+
+            if (isEmptyNewDraft) {
+              setStatus(id, 'saved')
+              continue
+            }
+
+            const targetCalendar = calendarsRef.current.find(
+              (calendar) => calendar.id === entry.calendarId
+            )
+
+            if (!targetCalendar || (entry.calendarId === 'default' && !existing?.resourceHref)) {
+              syncBaseRef.current.set(id, { ...entry })
+              setStatus(id, 'saved')
+              continue
+            }
+
+            setStatus(id, 'saving')
+
+            if (!existing) {
+              try {
+                await createCalDAVEvent(entry.calendarId, entry)
+                syncBaseRef.current.set(id, {
+                  ...(eventsRef.current.find((item) => item.id === id) || entry),
+                })
+                setStatus(id, 'saved')
+              } catch {
+                setStatus(id, 'error')
+              }
+              continue
+            }
+
+            const synced = await syncJournalEntryToServer({
+              existing,
+              targetCalendarId: entry.calendarId,
+              syncedEntry: entry,
+              updateCalDAVEvent,
+              createCalDAVEvent,
+              deleteCalDAVEventByHref,
+              showToast: (message) => {
+                showToast(message)
+              },
             })
+
+            if (!synced) {
+              setStatus(id, 'error')
+              continue
+            }
+
+            syncBaseRef.current.set(id, { ...entry })
             setStatus(id, 'saved')
-          })
-          .catch(() => setStatus(id, 'error'))
-        return
-      }
-      syncJournalEntryToServer({
-        existing,
-        targetCalendarId: entry.calendarId,
-        syncedEntry: entry,
-        updateCalDAVEvent,
-        createCalDAVEvent,
-        deleteCalDAVEventByHref,
-        showToast: (message) => {
-          showToast(message)
-        },
-      }).then((synced) => {
-        if (!synced) {
-          setStatus(id, 'error')
-          return
+          }
+        } finally {
+          syncInFlightRef.current.delete(id)
         }
-        syncBaseRef.current.set(id, { ...entry })
-        setStatus(id, 'saved')
-      })
+      })()
     },
     [createCalDAVEvent, deleteCalDAVEventByHref, setStatus, updateCalDAVEvent]
   )
+
   const scheduleSync = useCallback(
     (id: string): void => {
       const timer = timersRef.current.get(id)
@@ -776,6 +849,14 @@ export function JournalView(): JSX.Element {
         : today
     const now = new Date().toISOString()
     const id = uuidv4()
+    const selectedSemantic = activeSemanticKind
+      ? LFP_SEMANTICS.find(
+          (semantic) =>
+            semantic.kind === activeSemanticKind &&
+            semantic.carrier === 'VJOURNAL'
+        )
+      : undefined
+
     addEvent({
       id,
       calendarId: defaultCalendarId,
@@ -785,6 +866,7 @@ export function JournalView(): JSX.Element {
       end: date,
       isAllDay: true,
       type: 'journal',
+      concepts: selectedSemantic ? [selectedSemantic.concept] : [],
       created: now,
       lastModified: now,
     })
@@ -796,7 +878,7 @@ export function JournalView(): JSX.Element {
     setEditorMode('write')
     setListOnly(false)
     setFocusVersion((version) => version + 1)
-  }, [addEvent, currentDate, defaultCalendarId, viewMode])
+  }, [activeSemanticKind, addEvent, currentDate, defaultCalendarId, viewMode])
   const handleChange = useCallback(
     (updates: Partial<CalendarEvent>): void => {
       const activeId = selectedId || entries[0]?.id

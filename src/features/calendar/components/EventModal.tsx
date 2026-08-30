@@ -26,6 +26,7 @@ import type {
 } from '@/types'
 import { putAttachments, getAttachments, deleteAttachments } from '@/lib/attachmentStore'
 import { TaskFormFields } from './TaskFormFields'
+import { LFP_SEMANTICS } from '@/features/semantics/lfpSemantics'
 import { EventFormFields } from './EventFormFields'
 import { RecurrenceDialog } from './RecurrenceDialog'
 import { DeleteDialog } from './DeleteDialog'
@@ -295,6 +296,9 @@ export function EventModal(): JSX.Element | null {
   const [dueAllDay, setDueAllDay] = useState(true)
   const [completed, setCompleted] = useState(false)
   const [priority, setPriority] = useState<TaskPriority | undefined>(undefined)
+  const [taskSemanticType, setTaskSemanticType] = useState<'standard' | 'task' | 'cura'>(
+    'standard'
+  )
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialState.categories)
 
   const lastSelectedEventId = useRef<string | null>(null)
@@ -586,6 +590,17 @@ export function EventModal(): JSX.Element | null {
         setDueAllDay(existingEvent.isAllDay ?? true)
         setCompleted(existingEvent.completed || false)
         setPriority(existingEvent.priority)
+
+        const taskConcept = LFP_SEMANTICS.find(
+          (semantic) =>
+            (semantic.kind === 'task' || semantic.kind === 'cura') &&
+            existingEvent.concepts?.includes(semantic.concept)
+        )
+        setTaskSemanticType(
+          taskConcept?.kind === 'task' || taskConcept?.kind === 'cura'
+            ? taskConcept.kind
+            : 'standard'
+        )
       } else if (currentSelectedEventType === 'task') {
         // `.split('T')` — selectedDate is a bare `yyyy-MM-dd` from the todo
         // composer but a full local datetime from the AI photo import, and
@@ -606,6 +621,7 @@ export function EventModal(): JSX.Element | null {
         setDueAllDay(!prefillTime)
         setCompleted(false)
         setPriority(undefined)
+        setTaskSemanticType('standard')
       } else {
         setDueDate('')
         seededDueDateRef.current = ''
@@ -613,6 +629,7 @@ export function EventModal(): JSX.Element | null {
         setDueAllDay(true)
         setCompleted(false)
         setPriority(undefined)
+        setTaskSemanticType('standard')
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only reset on user-initiated event/date/endDate changes
@@ -993,6 +1010,12 @@ export function EventModal(): JSX.Element | null {
    * close, and the only way to guarantee that is to have no `await` before it.
    */
   const saveEvent = (mode: RecurrenceEditMode): void => {
+    const taskConcepts =
+      taskSemanticType === 'standard'
+        ? []
+        : [
+            LFP_SEMANTICS.find((semantic) => semantic.kind === taskSemanticType)?.concept,
+          ].filter((concept): concept is string => Boolean(concept))
     // Defensive guard: also called from `handleRecurrenceDialogConfirm`, which
     // a user can rapid-click just like the form's Save button.
     if (isSavingRef.current) return
@@ -1178,6 +1201,7 @@ export function EventModal(): JSX.Element | null {
             recurrenceId: originalOccurrenceDate,
             recurrenceMasterId: originalEventId,
             categories: selectedCategories,
+            ...(isTaskMode ? { concepts: taskConcepts } : {}),
             // A VTODO override keeps its task identity and its own DUE; the
             // event-only fields below have no VTODO meaning (see R2.7).
             type: isTaskMode ? 'task' : 'event',
@@ -1364,6 +1388,7 @@ export function EventModal(): JSX.Element | null {
             reminders: isTaskMode ? undefined : reminders,
             transparency: isTaskMode ? undefined : transparency,
             categories: selectedCategories,
+            ...(isTaskMode ? { concepts: taskConcepts } : {}),
             relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
             attendees: attendees.length > 0 ? attendees : undefined,
             organizer,
@@ -1416,6 +1441,7 @@ export function EventModal(): JSX.Element | null {
                   reminders: isTaskMode ? undefined : reminders,
                   transparency: isTaskMode ? undefined : transparency,
                   categories: selectedCategories,
+                  ...(isTaskMode ? { concepts: taskConcepts } : {}),
                   relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
                   attendees: attendees.length > 0 ? attendees : undefined,
                   organizer,
@@ -1442,6 +1468,7 @@ export function EventModal(): JSX.Element | null {
                   reminders: isTaskMode ? undefined : reminders,
                   transparency: isTaskMode ? undefined : transparency,
                   categories: selectedCategories,
+                  ...(isTaskMode ? { concepts: taskConcepts } : {}),
                   relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
                   attendees: attendees.length > 0 ? attendees : undefined,
                   organizer,
@@ -1488,6 +1515,7 @@ export function EventModal(): JSX.Element | null {
           reminders: isTaskMode ? undefined : reminders,
           transparency: isTaskMode ? undefined : transparency,
           categories: selectedCategories,
+          ...(isTaskMode ? { concepts: taskConcepts } : {}),
           relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
           attendees: attendees.length > 0 ? attendees : undefined,
           organizer,
@@ -1725,6 +1753,8 @@ export function EventModal(): JSX.Element | null {
                     onDueAllDayChange={setDueAllDay}
                     priority={priority}
                     onPriorityChange={setPriority}
+                    semanticType={taskSemanticType}
+                    onSemanticTypeChange={setTaskSemanticType}
                     parentTaskId={parentTaskId}
                     parentTasks={parentTaskOptions}
                     onParentTaskChange={setParentTaskId}
