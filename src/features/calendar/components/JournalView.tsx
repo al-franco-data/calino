@@ -24,6 +24,8 @@ import { AttachmentSection } from './AttachmentSection'
 import { syncJournalEntryToServer } from '../lib/journalSync'
 import { useTranslation } from 'react-i18next'
 import styles from './JournalView.module.css'
+import { useSemanticFilterStore } from '@/store/semanticFilterStore'
+import { matchesSemanticFilter } from '@/features/semantics/semanticFilter'
 
 type EditorMode = 'write' | 'read'
 type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error'
@@ -508,6 +510,8 @@ const JournalEntryRow = memo(function JournalEntryRow({
 
 export function JournalView(): JSX.Element {
   const { t } = useTranslation('calendar')
+  const activeSemanticFamily = useSemanticFilterStore((state) => state.activeFamily)
+  const activeSemanticKind = useSemanticFilterStore((state) => state.activeKind)
   const events = useCalendarStore((state) => state.events)
   const addEvent = useCalendarStore((state) => state.addEvent)
   const updateEvent = useCalendarStore((state) => state.updateEvent)
@@ -557,8 +561,13 @@ export function JournalView(): JSX.Element {
     [calendars]
   )
   const visibleEntries = useMemo(
-    () => events.filter((event) => isJournalEntryVisible(event, visibleCalendarIds)),
-    [events, visibleCalendarIds]
+    () =>
+      events.filter(
+        (event) =>
+          isJournalEntryVisible(event, visibleCalendarIds) &&
+          matchesSemanticFilter(event, activeSemanticFamily, activeSemanticKind)
+      ),
+    [events, visibleCalendarIds, activeSemanticFamily, activeSemanticKind]
   )
   const entries = useMemo(() => {
     const filtered =

@@ -23,6 +23,7 @@ import { useSettingsStore } from './store/settingsStore'
 // dragged YearView along and silently cancelled its lazy() split below.
 import { CalendarHeader } from './features/calendar/components/CalendarHeader'
 import { SemanticKindBar } from './features/semantics/SemanticKindBar'
+import { useSemanticFilterStore } from './store/semanticFilterStore'
 import { Sidebar } from './features/calendar/components/Sidebar'
 import { EventModal } from './features/calendar/components/EventModal'
 import { EventPreviewPopup } from './features/calendar/components/EventPreviewPopup'
@@ -308,11 +309,14 @@ function CalendarApp(): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
   const currentView = useCalendarStore((state) => state.currentView)
+  const setCurrentView = useCalendarStore((state) => state.setCurrentView)
   const setOverlayOpen = useCalendarStore((state) => state.setOverlayOpen)
   const setShowAddCalendar = useCalendarStore((state) => state.setShowAddCalendar)
   const openModal = useCalendarStore((state) => state.openModal)
-  const [activeSemanticFamily, setActiveSemanticFamily] = useState<import('./features/semantics/lfpSemantics').SemanticFamily | null>(null)
-  const [activeSemanticKind, setActiveSemanticKind] = useState<import('./features/semantics/lfpSemantics').SemanticKind | null>(null)
+  const activeSemanticFamily = useSemanticFilterStore((state) => state.activeFamily)
+  const activeSemanticKind = useSemanticFilterStore((state) => state.activeKind)
+  const selectSemanticFamily = useSemanticFilterStore((state) => state.selectFamily)
+  const selectSemanticKind = useSemanticFilterStore((state) => state.selectKind)
 
   const isJournalModalOpen = useCalendarStore((state) => state.isJournalModalOpen)
   const journalModalDate = useCalendarStore((state) => state.journalModalDate)
@@ -827,26 +831,33 @@ function CalendarApp(): JSX.Element {
             activeFamily={activeSemanticFamily}
             activeKind={activeSemanticKind}
             onFamilySelect={(family) => {
-              setActiveSemanticFamily(family)
-              setActiveSemanticKind(null)
+              selectSemanticFamily(family)
+
+              if (family === 'duty') {
+                setCurrentView('todo')
+              } else if (
+                family === 'contemplation' ||
+                family === 'record' ||
+                family === 'course'
+              ) {
+                setCurrentView('journal')
+              }
             }}
             onKindSelect={(kind) => {
-              setActiveSemanticKind(kind)
-              const semantic = (
-                [
-                  ['event', 'occurrence'],
-                  ['scaena', 'occurrence'],
-                  ['journal', 'contemplation'],
-                  ['pause-point', 'contemplation'],
-                  ['task', 'duty'],
-                  ['cura', 'duty'],
-                  ['note', 'record'],
-                  ['memo', 'record'],
-                  ['plan', 'course'],
-                  ['log', 'course'],
-                ] as const
-              ).find(([candidate]) => candidate === kind)?.[1] ?? null
-              setActiveSemanticFamily(semantic)
+              selectSemanticKind(kind)
+
+              if (kind === 'task' || kind === 'cura') {
+                setCurrentView('todo')
+              } else if (
+                kind === 'journal' ||
+                kind === 'pause-point' ||
+                kind === 'note' ||
+                kind === 'memo' ||
+                kind === 'plan' ||
+                kind === 'log'
+              ) {
+                setCurrentView('journal')
+              }
             }}
           />
           {renderView()}

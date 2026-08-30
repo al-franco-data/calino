@@ -36,6 +36,8 @@ import { TaskCollapseToggle } from './TaskCollapseToggle'
 import type { CalendarEvent } from '@/types'
 import styles from './TodoView.module.css'
 import { formatDisplayDate } from '@/lib/datetime'
+import { useSemanticFilterStore } from '@/store/semanticFilterStore'
+import { matchesSemanticFilter } from '@/features/semantics/semanticFilter'
 
 type FilterType = 'all' | 'active' | 'completed'
 
@@ -156,6 +158,8 @@ type VirtualItem =
   | { type: 'task'; key: string; task: TaskWithColor; depth: number }
 
 export function TodoView(): JSX.Element {
+  const activeSemanticFamily = useSemanticFilterStore((state) => state.activeFamily)
+  const activeSemanticKind = useSemanticFilterStore((state) => state.activeKind)
   const { t } = useTranslation('calendar')
   const events = useCalendarStore((state) => state.events)
   const calendars = useCalendarStore((state) => state.calendars)
@@ -285,6 +289,7 @@ export function TodoView(): JSX.Element {
       (e) =>
         e.type === 'task' &&
         visibleCalendarIds.has(e.calendarId) &&
+        matchesSemanticFilter(e, activeSemanticFamily, activeSemanticKind) &&
         // R2.7 — A cancelled override only exists to suppress one occurrence of
         // a series; it is not a task the user still has to do.
         e.taskStatus !== 'CANCELLED'
@@ -370,7 +375,7 @@ export function TodoView(): JSX.Element {
         ].join('\n'),
       }
     })
-  }, [events, calendars])
+  }, [events, calendars, activeSemanticFamily, activeSemanticKind])
 
   const taskCollapse = useTaskCollapse(events)
   const collapsedDescendantIds = useMemo(() => {
