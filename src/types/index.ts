@@ -96,6 +96,8 @@ export interface CalendarEvent {
   isAllDay: boolean
   color?: string
   categories?: string[]
+  /** RFC 9253 semantic concept URIs. CONCEPT may occur multiple times. */
+  concepts?: string[]
   recurrence?: RecurrenceRule
   reminders?: Reminder[]
   rruleString?: string

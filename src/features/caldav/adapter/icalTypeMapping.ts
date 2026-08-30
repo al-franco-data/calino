@@ -15,6 +15,10 @@ import { formatInTimeZone } from 'date-fns-tz'
 import { buildRRuleString, normaliseAllDayUntil } from '@/lib/recurrence'
 import { toLocalDateString } from '@/lib/datetime'
 import { normalizeTzid } from '@/lib/timezoneRegistry'
+import {
+  readScalarProperties,
+  writeScalarProperties,
+} from './icalPropertyRegistry'
 
 const VALID_PARTSTATS: AttendeePartstat[] = [
   'ACCEPTED',
@@ -776,6 +780,7 @@ export function icalEventToCalendarEvent(
   const { recurrenceId } = readRecurrenceId(vevent)
 
   const categories = readCategories(vevent)
+  const concepts = readScalarProperties(vevent, 'concept')
 
   // URL round-trips like it already does for VJOURNAL. Birthday/anniversary
   // events created from a contact carry their `calino:contact:<id>` marker
@@ -852,6 +857,7 @@ export function icalEventToCalendarEvent(
     // serializer can re-emit the TZID form on the wall-clock time.
     timezone,
     categories: categories.length > 0 ? categories : undefined,
+    concepts: concepts.length > 0 ? concepts : undefined,
     url,
     recurrence,
     reminders: reminders.length > 0 ? reminders : undefined,
@@ -1099,6 +1105,7 @@ export function calendarEventToIcalComponent(
   }
 
   writeCategories(vevent, event.categories ?? [])
+  writeScalarProperties(vevent, 'concept', event.concepts ?? [])
 
   writeAttendees(vevent, event)
 
@@ -1452,6 +1459,7 @@ export function icalVtodoToCalendarEvent(vtodo: ICAL.Component, calendarId: stri
   }
 
   const categories = readCategories(vtodo)
+  const concepts = readScalarProperties(vtodo, 'concept')
 
   const sequence = seqProp ? parseInt(seqProp.getFirstValue() as string, 10) : undefined
 
@@ -1492,6 +1500,7 @@ export function icalVtodoToCalendarEvent(vtodo: ICAL.Component, calendarId: stri
     isAllDay,
     timezone,
     categories: categories.length > 0 ? categories : undefined,
+    concepts: concepts.length > 0 ? concepts : undefined,
     type: 'task',
     dueDate,
     completed,
@@ -1633,6 +1642,7 @@ export function calendarEventToIcalVtodo(
   }
 
   writeCategories(vtodo, task.categories ?? [])
+  writeScalarProperties(vtodo, 'concept', task.concepts ?? [])
 
   // RELATED-TO is written by appending, and only the PARENT-typed ones are
   // ours; drop those and re-add so a re-parent can't leave two parents behind.
@@ -1721,6 +1731,7 @@ export function icalVjournalToCalendarEvent(
   }
 
   const categories = readCategories(vjournal)
+  const concepts = readScalarProperties(vjournal, 'concept')
 
   let created: string | undefined
   if (createdProp) {
@@ -1820,6 +1831,7 @@ export function icalVjournalToCalendarEvent(
     isAllDay: true,
     type: 'journal',
     categories: categories.length > 0 ? categories : undefined,
+    concepts: concepts.length > 0 ? concepts : undefined,
     created,
     lastModified,
     sequence,
@@ -1874,6 +1886,7 @@ export function calendarEventToIcalVjournal(
   }
 
   writeCategories(vjournal, entry.categories ?? [])
+  writeScalarProperties(vjournal, 'concept', entry.concepts ?? [])
 
   if (entry.url) {
     vjournal.updatePropertyWithValue('url', entry.url)

@@ -4,6 +4,7 @@ import {
   icalEventToCalendarEvent,
   calendarEventToIcalComponent,
   calendarEventToIcalVjournal,
+  calendarEventToIcalVtodo,
   icalVjournalToCalendarEvent,
   icalVtodoToCalendarEvent,
 } from '../icalTypeMapping'
@@ -1045,5 +1046,142 @@ describe('VALARM reconciliation in patch mode', () => {
 
     expect(alarms).toHaveLength(2)
     expect(alarms.some((a) => a.toString() === before)).toBe(true)
+  })
+})
+
+
+// ---------------------------------------------------------------------------
+// RFC 9253 CONCEPT
+//
+// CONCEPT is a registered iCalendar property with URI values. It may occur
+// multiple times. Calino models it generically as `concepts: string[]` so
+// future standards/IANA/X- scalar properties can use the same infrastructure.
+// ---------------------------------------------------------------------------
+
+describe('RFC 9253 CONCEPT', () => {
+  it('round-trips a URI-valued CONCEPT on VEVENT without escaping the tag URI comma', () => {
+    const raw = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:concept-event-1',
+      'DTSTART:20260830T120000Z',
+      'DTEND:20260830T130000Z',
+      'SUMMARY:Scaena test',
+      'CONCEPT:tag:losfranco.us,2026:occurrence/scaena',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n')
+
+    const parsed = icalEventToCalendarEvent(createVevent(raw), 'cal-1')
+
+    expect(parsed.concepts).toEqual([
+      'tag:losfranco.us,2026:occurrence/scaena',
+    ])
+
+    const out = calendarEventToIcalComponent(parsed).toString()
+
+    expect(out).toContain(
+      'CONCEPT:tag:losfranco.us,2026:occurrence/scaena'
+    )
+    expect(out).not.toContain('losfranco.us\\,2026')
+  })
+
+  it('round-trips a URI-valued CONCEPT on VTODO', () => {
+    const root = new ICAL.Component(
+      ICAL.parse(
+        [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'BEGIN:VTODO',
+          'UID:concept-task-1',
+          'SUMMARY:Cura test',
+          'STATUS:NEEDS-ACTION',
+          'CONCEPT:tag:losfranco.us,2026:duty/cura',
+          'END:VTODO',
+          'END:VCALENDAR',
+        ].join('\r\n')
+      )
+    )
+
+    const vtodo = root.getFirstSubcomponent('vtodo')
+    if (!vtodo) throw new Error('No VTODO found')
+
+    const parsed = icalVtodoToCalendarEvent(vtodo, 'cal-1')
+
+    expect(parsed.concepts).toEqual([
+      'tag:losfranco.us,2026:duty/cura',
+    ])
+
+    const out = calendarEventToIcalVtodo(parsed).toString()
+
+    expect(out).toContain('CONCEPT:tag:losfranco.us,2026:duty/cura')
+    expect(out).not.toContain('losfranco.us\\,2026')
+  })
+
+  it('round-trips a URI-valued CONCEPT on VJOURNAL', () => {
+    const root = new ICAL.Component(
+      ICAL.parse(
+        [
+          'BEGIN:VCALENDAR',
+          'VERSION:2.0',
+          'BEGIN:VJOURNAL',
+          'UID:concept-journal-1',
+          'DTSTART;VALUE=DATE:20260829',
+          'SUMMARY:Note test',
+          'CONCEPT:tag:losfranco.us,2026:record/note',
+          'END:VJOURNAL',
+          'END:VCALENDAR',
+        ].join('\r\n')
+      )
+    )
+
+    const vjournal = root.getFirstSubcomponent('vjournal')
+    if (!vjournal) throw new Error('No VJOURNAL found')
+
+    const parsed = icalVjournalToCalendarEvent(vjournal, 'cal-1')
+
+    expect(parsed.concepts).toEqual([
+      'tag:losfranco.us,2026:record/note',
+    ])
+
+    const out = calendarEventToIcalVjournal(parsed).toString()
+
+    expect(out).toContain('CONCEPT:tag:losfranco.us,2026:record/note')
+    expect(out).not.toContain('losfranco.us\\,2026')
+  })
+
+  it('preserves multiple CONCEPT properties as separate URI values', () => {
+    const raw = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:concept-multi-1',
+      'DTSTART:20260830T120000Z',
+      'DTEND:20260830T130000Z',
+      'SUMMARY:Multiple concepts',
+      'CONCEPT:https://example.com/concepts/one',
+      'CONCEPT:tag:example.com,2026:concept/two',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n')
+
+    const parsed = icalEventToCalendarEvent(createVevent(raw), 'cal-1')
+
+    expect(parsed.concepts).toEqual([
+      'https://example.com/concepts/one',
+      'tag:example.com,2026:concept/two',
+    ])
+
+    const out = calendarEventToIcalComponent(parsed).toString()
+
+    const conceptLines = out
+      .split(/\r?\n/)
+      .filter((line: string) => line.startsWith('CONCEPT:'))
+
+    expect(conceptLines).toEqual([
+      'CONCEPT:https://example.com/concepts/one',
+      'CONCEPT:tag:example.com,2026:concept/two',
+    ])
   })
 })
