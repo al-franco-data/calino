@@ -25,7 +25,20 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# ── Stage 2: Runtime ─────────────────────────────────────────────
+# ── Stage 2: Test ────────────────────────────────────────────────
+FROM build AS test
+
+# Leave empty for the complete Vitest suite, or provide one/more test paths
+# for a fast focused developer check.
+ARG CALINO_TEST_TARGET=""
+
+RUN if [ -n "$CALINO_TEST_TARGET" ]; then \
+      pnpm exec vitest --run "$CALINO_TEST_TARGET"; \
+    else \
+      pnpm test:run; \
+    fi
+
+# ── Stage 3: Runtime ─────────────────────────────────────────────
 FROM docker.io/library/caddy:2-alpine
 
 # Inline Caddy config — no separate file needed
