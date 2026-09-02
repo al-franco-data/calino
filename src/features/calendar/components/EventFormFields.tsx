@@ -70,6 +70,9 @@ function foreignZoneTimes(
 }
 
 interface EventFormFieldsProps {
+  semanticType?: 'standard' | 'event' | 'scaena'
+  onSemanticTypeChange?: (semanticType: 'standard' | 'event' | 'scaena') => void
+
   /**
    * The event's own TZID, when it has one. The date/time fields always work in
    * the device zone, so a foreign TZID is otherwise invisible: editing a 09:00
@@ -162,6 +165,8 @@ function reminderLabel(value: number, t: TFunction): string {
 }
 
 export function EventFormFields({
+  semanticType = 'standard',
+  onSemanticTypeChange = () => {},
   isAllDay,
   onIsAllDayChange,
   startDate,
@@ -267,6 +272,26 @@ export function EventFormFields({
 
   return (
     <>
+      <div className={styles.row} data-component="event-semantic-type">
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="event-semantic-type-select">
+            Type
+          </label>
+          <select
+            id="event-semantic-type-select"
+            value={semanticType}
+            onChange={(e) =>
+              onSemanticTypeChange(e.target.value as 'standard' | 'event' | 'scaena')
+            }
+            className={styles.select}
+          >
+            <option value="standard">Standard</option>
+            <option value="event">Event</option>
+            <option value="scaena">Scaena</option>
+          </select>
+        </div>
+      </div>
+
       <div className={styles.dateTimeRow}>
         <div className={styles.dateTimeGroup}>
           <label className={styles.label} htmlFor={startDateId}>

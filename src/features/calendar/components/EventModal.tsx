@@ -28,6 +28,7 @@ import { putAttachments, getAttachments, deleteAttachments } from '@/lib/attachm
 import { TaskFormFields } from './TaskFormFields'
 import { LFP_SEMANTICS } from '@/features/semantics/lfpSemantics'
 import { EventFormFields } from './EventFormFields'
+import { useSemanticFilterStore } from '@/store/semanticFilterStore'
 import { RecurrenceDialog } from './RecurrenceDialog'
 import { DeleteDialog } from './DeleteDialog'
 import { getInitialFormState, addMinutesToTimeStr } from './eventModalState'
@@ -77,6 +78,7 @@ export function EventModal(): JSX.Element | null {
   const subtaskParentId = useCalendarStore((state) => state.subtaskParentId)
   const pendingEventPrefill = useCalendarStore((state) => state.pendingEventPrefill)
   const selectedEventType = useCalendarStore((state) => state.selectedEventType)
+  const activeSemanticKind = useSemanticFilterStore((state) => state.activeKind)
   const events = useCalendarStore((state) => state.events)
   const calendars = useCalendarStore((state) => state.calendars)
   const taskCollapse = useTaskCollapse(events)
@@ -297,6 +299,9 @@ export function EventModal(): JSX.Element | null {
   const [completed, setCompleted] = useState(false)
   const [priority, setPriority] = useState<TaskPriority | undefined>(undefined)
   const [taskSemanticType, setTaskSemanticType] = useState<'standard' | 'task' | 'cura'>(
+    'standard'
+  )
+  const [eventSemanticType, setEventSemanticType] = useState<'standard' | 'event' | 'scaena'>(
     'standard'
   )
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialState.categories)
@@ -630,6 +635,23 @@ export function EventModal(): JSX.Element | null {
         setCompleted(false)
         setPriority(undefined)
         setTaskSemanticType('standard')
+
+        const eventConcept = LFP_SEMANTICS.find(
+          (semantic) =>
+            (semantic.kind === 'event' || semantic.kind === 'scaena') &&
+            existingEvent?.concepts?.includes(semantic.concept)
+        )
+
+        if (eventConcept?.kind === 'event' || eventConcept?.kind === 'scaena') {
+          setEventSemanticType(eventConcept.kind)
+        } else if (
+          !existingEvent &&
+          (activeSemanticKind === 'event' || activeSemanticKind === 'scaena')
+        ) {
+          setEventSemanticType(activeSemanticKind)
+        } else {
+          setEventSemanticType('standard')
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only reset on user-initiated event/date/endDate changes
@@ -640,6 +662,7 @@ export function EventModal(): JSX.Element | null {
     selectedEndDate,
     subtaskParentId,
     initialCalendarId,
+    activeSemanticKind,
   ])
 
   // Auto-focus title input when creating a new event. On mobile this waits
@@ -1016,6 +1039,22 @@ export function EventModal(): JSX.Element | null {
         : [
             LFP_SEMANTICS.find((semantic) => semantic.kind === taskSemanticType)?.concept,
           ].filter((concept): concept is string => Boolean(concept))
+    const occurrenceConcepts = LFP_SEMANTICS.filter(
+      (semantic) => semantic.kind === 'event' || semantic.kind === 'scaena'
+    ).map((semantic) => semantic.concept)
+
+    const preservedEventConcepts = (existingEvent?.concepts ?? []).filter(
+      (concept) => !occurrenceConcepts.includes(concept)
+    )
+
+    const selectedEventConcept =
+      eventSemanticType === 'standard'
+        ? undefined
+        : LFP_SEMANTICS.find((semantic) => semantic.kind === eventSemanticType)?.concept
+
+    const eventConcepts = selectedEventConcept
+      ? [...preservedEventConcepts, selectedEventConcept]
+      : preservedEventConcepts
     // Defensive guard: also called from `handleRecurrenceDialogConfirm`, which
     // a user can rapid-click just like the form's Save button.
     if (isSavingRef.current) return
@@ -1201,7 +1240,7 @@ export function EventModal(): JSX.Element | null {
             recurrenceId: originalOccurrenceDate,
             recurrenceMasterId: originalEventId,
             categories: selectedCategories,
-            ...(isTaskMode ? { concepts: taskConcepts } : {}),
+            ...(isTaskMode ? { concepts: taskConcepts } : { concepts: eventConcepts }),
             // A VTODO override keeps its task identity and its own DUE; the
             // event-only fields below have no VTODO meaning (see R2.7).
             type: isTaskMode ? 'task' : 'event',
@@ -1388,7 +1427,7 @@ export function EventModal(): JSX.Element | null {
             reminders: isTaskMode ? undefined : reminders,
             transparency: isTaskMode ? undefined : transparency,
             categories: selectedCategories,
-            ...(isTaskMode ? { concepts: taskConcepts } : {}),
+            ...(isTaskMode ? { concepts: taskConcepts } : { concepts: eventConcepts }),
             relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
             attendees: attendees.length > 0 ? attendees : undefined,
             organizer,
@@ -1441,7 +1480,7 @@ export function EventModal(): JSX.Element | null {
                   reminders: isTaskMode ? undefined : reminders,
                   transparency: isTaskMode ? undefined : transparency,
                   categories: selectedCategories,
-                  ...(isTaskMode ? { concepts: taskConcepts } : {}),
+                  ...(isTaskMode ? { concepts: taskConcepts } : { concepts: eventConcepts }),
                   relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
                   attendees: attendees.length > 0 ? attendees : undefined,
                   organizer,
@@ -1468,7 +1507,7 @@ export function EventModal(): JSX.Element | null {
                   reminders: isTaskMode ? undefined : reminders,
                   transparency: isTaskMode ? undefined : transparency,
                   categories: selectedCategories,
-                  ...(isTaskMode ? { concepts: taskConcepts } : {}),
+                  ...(isTaskMode ? { concepts: taskConcepts } : { concepts: eventConcepts }),
                   relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
                   attendees: attendees.length > 0 ? attendees : undefined,
                   organizer,
@@ -1515,7 +1554,7 @@ export function EventModal(): JSX.Element | null {
           reminders: isTaskMode ? undefined : reminders,
           transparency: isTaskMode ? undefined : transparency,
           categories: selectedCategories,
-          ...(isTaskMode ? { concepts: taskConcepts } : {}),
+          ...(isTaskMode ? { concepts: taskConcepts } : { concepts: eventConcepts }),
           relatedTo: relatedTo.length > 0 ? relatedTo : undefined,
           attendees: attendees.length > 0 ? attendees : undefined,
           organizer,
@@ -1820,6 +1859,8 @@ export function EventModal(): JSX.Element | null {
 
                 {!isTaskMode && (
                   <EventFormFields
+                    semanticType={eventSemanticType}
+                    onSemanticTypeChange={setEventSemanticType}
                     eventTimezone={
                       events.find((event) => event.id === (originalEventId ?? selectedEventId))
                         ?.timezone

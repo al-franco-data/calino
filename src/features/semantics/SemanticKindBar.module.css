@@ -45,7 +45,7 @@
 }
 
 .active {
-  background: var(--accent-soft, var(--color-bg-secondary));
+  background: transparent;
   color: var(--accent-strong, var(--color-accent));
 }
 
@@ -75,6 +75,12 @@
 }
 
 .included {
-  background: var(--color-bg-secondary, rgba(127, 127, 127, 0.08));
-  color: var(--color-text, var(--color-text-primary));
+  background: transparent;
+  color: var(--accent-strong, var(--color-accent));
+}
+
+.familyButton.active:hover,
+.kindButton.active:hover,
+.kindButton.included:hover {
+  background: transparent;
 }

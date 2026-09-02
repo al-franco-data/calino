@@ -39,6 +39,7 @@ describe('JournalView compose date (#116)', () => {
 
     const store = useCalendarStore.getState()
     store.setCurrentView('journal')
+    store.setCurrentDate(LOCAL_DAY)
     store.events.forEach((e) => store.deleteEvent(e.id))
   })
 

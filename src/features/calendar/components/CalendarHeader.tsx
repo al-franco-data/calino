@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { formatDisplayDate, formatMonthYear } from '@/lib/datetime'
 import { useCalendarStore } from '@/store/calendarStore'
+import { useSemanticFilterStore } from '@/store/semanticFilterStore'
 import { useSettingsStore } from '@/store/settingsStore'
 import { QuickSettingsPanel } from './QuickSettingsPanel'
 import { ChevronLeft, ChevronRight } from '@/components/common/icons'
@@ -41,6 +42,7 @@ export function CalendarHeader({
   const currentView = useCalendarStore((state) => state.currentView)
   const setCurrentDate = useCalendarStore((state) => state.setCurrentDate)
   const setCurrentView = useCalendarStore((state) => state.setCurrentView)
+  const clearSemanticSelection = useSemanticFilterStore((state) => state.clearSelection)
   const firstDayOfWeek = useSettingsStore((state) => state.firstDayOfWeek)
   const weekWindowStart = useWeekWindowStart()
   const journalEnabled = useSettingsStore((state) => state.journalEnabled)
@@ -472,10 +474,11 @@ export function CalendarHeader({
 
   const handleViewChange = useCallback(
     (view: ViewType) => {
+      clearSemanticSelection()
       setCurrentView(view)
       navigate(VIEW_ROUTES[view], { replace: true })
     },
-    [setCurrentView, navigate]
+    [clearSemanticSelection, setCurrentView, navigate]
   )
 
   // Per-tab hover sub-menu items. Absent entries render as a plain tab.

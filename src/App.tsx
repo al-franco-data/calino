@@ -23,6 +23,7 @@ import { useSettingsStore } from './store/settingsStore'
 // dragged YearView along and silently cancelled its lazy() split below.
 import { CalendarHeader } from './features/calendar/components/CalendarHeader'
 import { SemanticKindBar } from './features/semantics/SemanticKindBar'
+import { OccurrenceView } from './features/calendar/components/OccurrenceView'
 import { useSemanticFilterStore } from './store/semanticFilterStore'
 import { Sidebar } from './features/calendar/components/Sidebar'
 import { EventModal } from './features/calendar/components/EventModal'
@@ -715,6 +716,19 @@ function CalendarApp(): JSX.Element {
   }, [location.pathname, location.search, navigate])
 
   const renderView = (): JSX.Element => {
+    const occurrenceActive =
+      activeSemanticFamily === 'occurrence' ||
+      activeSemanticKind === 'event' ||
+      activeSemanticKind === 'scaena'
+
+    if (occurrenceActive) {
+      return (
+        <ErrorBoundary key={`occurrence-${activeSemanticKind ?? 'all'}`}>
+          <OccurrenceView />
+        </ErrorBoundary>
+      )
+    }
+
     const viewElement = (() => {
       switch (currentView) {
         case 'month':

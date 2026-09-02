@@ -1,0 +1,248 @@
+.surface {
+  display: flex;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  padding: 18px 20px 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font: 500 22px var(--font-serif, Georgia, serif);
+}
+
+.count {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.segmentedControl {
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.segmentTab {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--ink-3);
+  font: 500 13px inherit;
+  cursor: pointer;
+}
+
+.segmentTabActive {
+  background: var(--surface, #fff);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+}
+
+.addEntry {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent-strong, var(--accent));
+  color: var(--accent-contrast, #fff);
+  font: 500 13.5px inherit;
+  cursor: pointer;
+}
+
+.addEntry span:first-child {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.addEntry:hover {
+  filter: brightness(0.94);
+}
+
+.layout {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(360px, 380px) minmax(520px, 1fr);
+  gap: 0;
+  padding-top: 18px;
+}
+
+.layoutListOnly {
+  grid-template-columns: minmax(560px, 1fr);
+}
+
+.layoutListOnly .listPane {
+  padding-right: 0;
+}
+
+.listPane {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding-right: 8px;
+}
+
+.listHeader {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 12px 11px;
+  color: var(--ink-3);
+  font: 600 11px var(--font-serif, Georgia, serif);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.listScroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.entryRow {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+  padding: 13px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.entryRow:hover,
+.entryRowSelected {
+  background: var(--surface-hover, rgba(127, 127, 127, 0.08));
+}
+
+.entryDate {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.entryMain {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.entryTitle {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entryMeta {
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workPane {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--line);
+}
+
+.workPaneInner {
+  position: relative;
+  display: flex;
+  min-height: 180px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 48px 22px 24px;
+  color: var(--ink-3);
+}
+
+.workPaneInner strong {
+  color: var(--ink);
+  font: 500 18px var(--font-serif, Georgia, serif);
+}
+
+.closePane {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.empty {
+  padding: 58px 16px;
+  color: var(--ink-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+.empty h2 {
+  margin: 0 0 7px;
+  color: var(--ink-2);
+  font: 500 17px var(--font-serif, Georgia, serif);
+}
+
+.empty p {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .surface {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .layout,
+  .layoutListOnly {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workPane {
+    display: none;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
